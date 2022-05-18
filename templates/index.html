@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Buy cool new product</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://js.stripe.com/v3/"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.js"></script>
+  </head>
+  <body>
+  {% if user.is_authenticated %}
+  <div id="app">
+    <div class="order"><h2>Order sum: [[order_sum / 100]] $ </h2><button @click="buyOrder">Checkout order</button></div>
+    <div style="display:flex;flex-wrap:wrap;">
+    <section style="padding:10px" v-for="item in items" :key="item.name">
+      <div class="product">
+        <div class="description">
+          <h3>[[item.name]]</h3>
+          <p>[[item.description]]</p>
+          <h5>$[[item.price / 100]]</h5>
+        </div>
+      </div>
+      <button @click="checkout(item.id)">Buy</button>
+      <button @click="toCart(item.id)">To cart</button>
+    </section>
+      </div>
+  </div>
+  </body>
+  <script>
+  var stripe = Stripe('pk_test_51L0JVKL7qCAkPdazFMKBfUSt80b7lJQ6qIbr70oAYQABFesIeK0xHsgjf2W1zg1DJCIOT2mU4i6mSBqryxsQzj5u00jsYID3cT');
+  var app = new Vue({
+      delimiters: ['[[', ']]'],
+      el: '#app',
+      data: {
+          items: {{items | safe}},
+          order_sum: 0
+      },
+      mounted: function(){
+        this.initOrder()
+      },
+      methods: {
+          checkout: function(id) {
+            fetch('/api/buy/' + id, {
+              method: 'GET',
+            })
+            .then(function(response) {
+
+              return response.json();
+            })
+            .then(function(session) {
+              return stripe.redirectToCheckout({ sessionId: session });
+
+            })
+            .then(function(result) {
+              if (result.error) {
+                alert(result.error.message);
+              }
+            });
+          },
+          buyOrder: function() {
+            fetch('/api/order/', {
+                method: 'GET',
+              })
+              .then(function(response) {
+
+                return response.json();
+              })
+              .then(function(session) {
+              if (session != false) {
+                return stripe.redirectToCheckout({ sessionId: session });
+              }
+              return false;
+              })
+              .then(function(result) {
+                if (result.error) {
+                  alert(result.error.message);
+                }
+              });
+          },
+          toCart: function(id) {
+              var self=this;
+              fetch('/api/order/add?' + new URLSearchParams({
+                  id: id,
+              }), {
+                method: 'GET',
+              })
+              .then(function(response) {
+
+                return response.json();
+              })
+              .then(function(new_sum) {
+                self.order_sum = new_sum;
+                return true;
+              })
+              .then(function(result) {
+                if (result.error) {
+                  alert(result.error.message);
+                }
+              });
+          },
+          initOrder: function() {
+                          var self=this;
+              fetch('/api/order/list', {
+                method: 'GET',
+              })
+              .then(function(response) {
+
+                return response.json();
+              })
+              .then(function(new_sum) {
+                self.order_sum = new_sum;
+                return true;
+              })
+              .then(function(result) {
+                if (result.error) {
+                  alert(result.error.message);
+                }
+              });
+          }
+      },
+
+    });
+
+
+  </script>
+{% else %}
+<div>Only fo auth user test credetionals user:user <a href="admin/login">GO</a></div>
+{% endif %}
+</html>
